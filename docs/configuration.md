@@ -12,6 +12,7 @@ kuberollouttrigger is configured through environment variables and command-line 
 | `VALKEY_USERNAME` | `--valkey-username` | No | — | Valkey authentication username |
 | `VALKEY_PASSWORD` | `--valkey-password` | No | — | Valkey authentication password |
 | `VALKEY_TLS_ENABLED` | `--valkey-tls` | No | `false` | Enable TLS for Valkey connection |
+| `ALLOWED_IMAGE_PREFIX` | `--allowed-image-prefix` | **Yes** | — | Required prefix for image names in payloads (e.g., `ghcr.io/unitvectory-labs/`) |
 
 ## Web Mode Configuration
 
@@ -20,14 +21,12 @@ kuberollouttrigger is configured through environment variables and command-line 
 | `WEB_LISTEN_ADDR` | `--listen-addr` | No | `:8080` | HTTP server listen address |
 | `GITHUB_OIDC_AUDIENCE` | `--github-oidc-audience` | **Yes** | — | Required OIDC audience claim for token validation |
 | `GITHUB_ALLOWED_ORG` | `--github-allowed-org` | **Yes** | — | GitHub organization that must match the token's `repository_owner` claim |
-| `ALLOWED_IMAGE_PREFIX` | `--allowed-image-prefix` | **Yes** | — | Required prefix for image names in payloads (e.g., `ghcr.io/unitvectory-labs/`) |
 | `DEV_MODE` | `--dev-mode` | No | `false` | Disable OIDC signature verification (for development only) |
 
 ## Worker Mode Configuration
 
 | Environment Variable | CLI Flag | Required | Default | Description |
 |---|---|---|---|---|
-| `ALLOWED_IMAGE_PREFIX` | `--allowed-image-prefix` | **Yes** | — | Required prefix for image names in received messages |
 | `KUBECONFIG` | `--kubeconfig` | No | — | Path to kubeconfig file. If empty, in-cluster configuration is used |
 
 ## Precedence
