@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 )
 
@@ -165,12 +164,11 @@ func TestEnvBool(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		os.Setenv("TEST_BOOL", tt.value)
+		t.Setenv("TEST_BOOL", tt.value)
 		if got := envBool("TEST_BOOL"); got != tt.expected {
 			t.Errorf("envBool(%q) = %v, want %v", tt.value, got, tt.expected)
 		}
 	}
-	os.Unsetenv("TEST_BOOL")
 }
 
 func TestNewRedisOptions(t *testing.T) {

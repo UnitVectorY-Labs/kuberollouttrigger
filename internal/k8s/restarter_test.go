@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -20,7 +21,7 @@ func createTestDeployment(namespace, name string, images ...string) *appsv1.Depl
 	containers := make([]corev1.Container, len(images))
 	for i, img := range images {
 		containers[i] = corev1.Container{
-			Name:  "container-" + string(rune('a'+i)),
+			Name:  fmt.Sprintf("container-%d", i),
 			Image: img,
 		}
 	}
