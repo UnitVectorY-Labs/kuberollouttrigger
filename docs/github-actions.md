@@ -144,6 +144,7 @@ With digest:
 | `202 Accepted` | Event was validated and published to Valkey |
 | `400 Bad Request` | Invalid payload (schema validation failed, wrong image prefix) |
 | `401 Unauthorized` | Authentication failed (invalid token, wrong org, wrong audience) |
+| `403 Forbidden` | Typically returned by an upstream Ingress/Gateway policy, not kuberollouttrigger itself |
 | `405 Method Not Allowed` | Wrong HTTP method (must be POST) |
 | `502 Bad Gateway` | Failed to publish to Valkey |
 
@@ -162,6 +163,17 @@ With digest:
 - Verify the OIDC audience matches `GITHUB_OIDC_AUDIENCE` exactly
 - Verify the repository belongs to the organization configured in `GITHUB_ALLOWED_ORG`
 - Ensure `id-token: write` permission is set in the workflow
+- Check web-mode logs for `OIDC token validation failed` and compare:
+  - `expected_audience` vs `token_claim_audience`
+  - `expected_repository_owner` vs `token_claim_repository_owner`
+  - `expected_issuer` vs `token_claim_issuer`
+
+### 403 Forbidden
+
+- kuberollouttrigger does not emit `403` in the current implementation; authentication failures are `401`
+- If you receive `403`, inspect Ingress/Gateway/WAF policy logs (request likely blocked before reaching the pod)
+- Confirm whether the web pod logs contain `request completed` for the failed request
+- Use the `X-Request-Id` response header to correlate proxy and pod logs
 
 ### 400 Bad Request
 

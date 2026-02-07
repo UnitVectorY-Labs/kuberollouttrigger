@@ -65,6 +65,16 @@ On startup, both modes log a configuration summary. Secrets (passwords) are neve
 }
 ```
 
+## Request Logging (Web Mode)
+
+Web mode emits one log entry per HTTP request with:
+
+- `request_id` (also returned to the client as `X-Request-Id`)
+- `method`, `path`, `status`, `duration_ms`
+- `remote_addr`, `user_agent`
+
+For failed token validation, web mode logs safe token diagnostics (no raw token content), including expected audience/org/issuer and unverified token claim metadata to simplify troubleshooting.
+
 ## Examples
 
 ### Web Mode with Environment Variables

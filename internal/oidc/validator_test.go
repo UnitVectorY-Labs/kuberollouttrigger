@@ -280,3 +280,49 @@ func TestFetchJWKS_InvalidJSON(t *testing.T) {
 		t.Fatal("expected error for invalid JSON")
 	}
 }
+
+func TestInspectToken_Valid(t *testing.T) {
+	key := generateTestKey(t)
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    GitHubOIDCIssuer,
+			Audience:  jwt.ClaimStrings{"test-audience"},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+		RepositoryOwner: "test-org",
+		Repository:      "test-org/test-repo",
+	}
+
+	tokenStr := createSignedToken(t, key, "test-kid", claims)
+	inspection := InspectToken(tokenStr)
+
+	if inspection.ParseError != "" {
+		t.Fatalf("expected no parse error, got %q", inspection.ParseError)
+	}
+	if inspection.HeaderAlg != "RS256" {
+		t.Fatalf("expected RS256 alg, got %q", inspection.HeaderAlg)
+	}
+	if inspection.HeaderKID != "test-kid" {
+		t.Fatalf("expected test-kid, got %q", inspection.HeaderKID)
+	}
+	if inspection.Issuer != GitHubOIDCIssuer {
+		t.Fatalf("expected issuer %q, got %q", GitHubOIDCIssuer, inspection.Issuer)
+	}
+	if len(inspection.Audience) != 1 || inspection.Audience[0] != "test-audience" {
+		t.Fatalf("expected audience test-audience, got %v", inspection.Audience)
+	}
+	if inspection.RepositoryOwner != "test-org" {
+		t.Fatalf("expected owner test-org, got %q", inspection.RepositoryOwner)
+	}
+	if inspection.Repository != "test-org/test-repo" {
+		t.Fatalf("expected repository test-org/test-repo, got %q", inspection.Repository)
+	}
+}
+
+func TestInspectToken_Invalid(t *testing.T) {
+	inspection := InspectToken("not-a-jwt")
+	if inspection.ParseError == "" {
+		t.Fatal("expected parse error for invalid token")
+	}
+}

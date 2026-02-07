@@ -62,9 +62,60 @@ type Claims struct {
 	Repository      string `json:"repository"`
 }
 
+// TokenInspection contains unverified, safe-to-log token metadata.
+type TokenInspection struct {
+	HeaderAlg       string
+	HeaderKID       string
+	Issuer          string
+	Audience        []string
+	RepositoryOwner string
+	Repository      string
+	ParseError      string
+}
+
 // SetJWKSURL overrides the JWKS URL (for testing).
 func (v *Validator) SetJWKSURL(url string) {
 	v.jwksURL = url
+}
+
+// Audience returns the expected audience value.
+func (v *Validator) Audience() string {
+	return v.audience
+}
+
+// AllowedOrg returns the configured allowed GitHub organization.
+func (v *Validator) AllowedOrg() string {
+	return v.allowedOrg
+}
+
+// InspectToken parses token header and claims without signature verification.
+// It is intended only for diagnostics and logging.
+func InspectToken(tokenString string) TokenInspection {
+	var claims Claims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	token, _, err := parser.ParseUnverified(tokenString, &claims)
+	if err != nil {
+		return TokenInspection{
+			ParseError: err.Error(),
+		}
+	}
+
+	inspection := TokenInspection{
+		Issuer:          claims.Issuer,
+		Audience:        []string(claims.Audience),
+		RepositoryOwner: claims.RepositoryOwner,
+		Repository:      claims.Repository,
+	}
+	if token != nil {
+		if alg, ok := token.Header["alg"].(string); ok {
+			inspection.HeaderAlg = alg
+		}
+		if kid, ok := token.Header["kid"].(string); ok {
+			inspection.HeaderKID = kid
+		}
+	}
+
+	return inspection
 }
 
 // ValidateToken validates the given JWT token string and returns the parsed claims.

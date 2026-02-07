@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/UnitVectorY-Labs/kuberollouttrigger/internal/oidc"
 	"github.com/UnitVectorY-Labs/kuberollouttrigger/internal/payload"
@@ -15,6 +17,8 @@ import (
 )
 
 const maxPayloadSize = 1 << 20 // 1MB
+
+type requestIDContextKey struct{}
 
 // Server is the HTTP server for web mode.
 type Server struct {
@@ -40,7 +44,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /event", s.handleEvent)
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
-	return mux
+	return s.requestLoggingMiddleware(mux)
 }
 
 func generateRequestID() string {
@@ -51,8 +55,67 @@ func generateRequestID() string {
 	return hex.EncodeToString(b)
 }
 
+func withRequestID(ctx context.Context, requestID string) context.Context {
+	return context.WithValue(ctx, requestIDContextKey{}, requestID)
+}
+
+func requestIDFromContext(ctx context.Context) string {
+	if id, ok := ctx.Value(requestIDContextKey{}).(string); ok && id != "" {
+		return id
+	}
+	return generateRequestID()
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	return r.ResponseWriter.Write(b)
+}
+
+func (s *Server) requestLoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := generateRequestID()
+		start := time.Now()
+		logger := s.logger.With("request_id", requestID)
+
+		w.Header().Set("X-Request-Id", requestID)
+		recorder := &statusRecorder{ResponseWriter: w}
+		next.ServeHTTP(recorder, r.WithContext(withRequestID(r.Context(), requestID)))
+
+		status := recorder.status
+		if status == 0 {
+			status = http.StatusOK
+		}
+
+		logFn := logger.Info
+		if status >= http.StatusBadRequest {
+			logFn = logger.Warn
+		}
+
+		logFn("request completed",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", status,
+			"duration_ms", time.Since(start).Milliseconds(),
+			"remote_addr", r.RemoteAddr,
+			"user_agent", r.UserAgent(),
+		)
+	})
+}
+
 func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
-	requestID := generateRequestID()
+	requestID := requestIDFromContext(r.Context())
 	logger := s.logger.With("request_id", requestID)
 
 	// Validate Content-Type
@@ -75,7 +138,26 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 	// Validate OIDC token
 	claims, err := s.validator.ValidateToken(tokenString)
 	if err != nil {
-		logger.Warn("OIDC token validation failed", "error", err.Error())
+		inspection := oidc.InspectToken(tokenString)
+		logAttrs := []any{
+			"error", err.Error(),
+			"expected_issuer", oidc.GitHubOIDCIssuer,
+			"expected_audience", s.validator.Audience(),
+			"expected_repository_owner", s.validator.AllowedOrg(),
+		}
+		if inspection.ParseError != "" {
+			logAttrs = append(logAttrs, "token_parse_error", inspection.ParseError)
+		} else {
+			logAttrs = append(logAttrs,
+				"token_header_alg", inspection.HeaderAlg,
+				"token_header_kid", inspection.HeaderKID,
+				"token_claim_issuer", inspection.Issuer,
+				"token_claim_audience", inspection.Audience,
+				"token_claim_repository_owner", inspection.RepositoryOwner,
+				"token_claim_repository", inspection.Repository,
+			)
+		}
+		logger.Warn("OIDC token validation failed", logAttrs...)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
