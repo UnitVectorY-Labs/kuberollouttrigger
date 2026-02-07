@@ -15,13 +15,13 @@ COPY . .
 ENV CGO_ENABLED=0
 
 # Build the Go server
-RUN go build -mod=readonly -o server .
+RUN go build -mod=readonly -o kuberollouttrigger .
 
 # Use a minimal base image for running the compiled binary
 FROM gcr.io/distroless/base-debian13
 
-# Copy the built server binary into the runtime container
-COPY --from=builder /app/server /server
+# Copy the built binary into the runtime container
+COPY --from=builder /app/kuberollouttrigger /kuberollouttrigger
 
 # Expose the port that the server will listen on
 EXPOSE 8080
@@ -29,5 +29,5 @@ EXPOSE 8080
 # Run as non-root user
 USER 65532:65532
 
-# Run the server binary
-CMD ["/server"]
+# The binary requires a subcommand (web or worker)
+ENTRYPOINT ["/kuberollouttrigger"]
