@@ -1,3 +1,10 @@
+---
+layout: default
+title: Configuration
+nav_order: 3
+permalink: /configuration
+---
+
 # Configuration
 
 kuberollouttrigger is configured through environment variables and command-line flags. Command-line flags take precedence over environment variables, which take precedence over defaults.

@@ -1,6 +1,11 @@
-# Architecture
+---
+layout: default
+title: Architecture
+nav_order: 2
+permalink: /architecture
+---
 
-kuberollouttrigger is a lightweight system that automatically triggers Kubernetes Deployment rollouts when a new container image is published from a GitHub Actions workflow.
+# Architecture
 
 ## Overview
 
@@ -8,6 +13,8 @@ The system consists of two runtime modes packaged in a single Go binary:
 
 1. **Web Mode** — An HTTP server that receives authenticated webhook events from GitHub Actions and publishes them to Valkey PubSub.
 2. **Worker Mode** — A subscriber that listens for events on Valkey PubSub and triggers rollout restarts for matching Kubernetes Deployments.
+
+The design principal here is separating the application that receives the callbacks from GitHub from the component that has administrative access to modify the Kubernetes cluster through a messaging channel provided by Valkey.
 
 ## Architecture Diagram
 
@@ -36,13 +43,12 @@ The web mode exposes two HTTP endpoints:
 2. The web server validates the OIDC token:
    - Verifies the JWT signature against GitHub's JWKS endpoint
    - Validates standard claims (exp, iat, nbf)
-   - Checks that the audience matches the configured value
-   - Enforces that the `repository_owner` claim matches the configured allowed organization
+   - Checks that the audience matches the configured value (`GITHUB_OIDC_AUDIENCE`)
+   - Enforces that the `repository_owner` claim matches the configured allowed organization (`GITHUB_ALLOWED_ORG`)
 3. The JSON payload is validated:
    - Strict schema validation (unknown fields are rejected)
-   - The `image` field must start with the configured allowed prefix
+   - The `image` field must start with the configured allowed prefix (`ALLOWED_IMAGE_PREFIX`))
    - The `tag` field must be non-empty
-   - Optional `digest` field must match `sha256:<64 hex chars>` format if present
 4. On success, the payload is published to the configured Valkey PubSub channel and HTTP 202 (Accepted) is returned.
 
 **Security considerations:**
@@ -52,6 +58,8 @@ The web mode exposes two HTTP endpoints:
 - JWKS keys are cached with a 1-hour TTL to reduce external calls
 - Request payloads are limited to 1MB
 
+The core security architectural assumption here is that the only action that the web component can send to the worker component is a signal to restart deployments. Therefore if the web frontend or Valkey components are compromised the security boundary for interacting with the Kubernetes cluster is enforced by the worker as the only component that has permissions to modify the running cluster.
+
 ### Worker Mode
 
 The worker mode subscribes to a Valkey PubSub channel and processes incoming events:
@@ -60,7 +68,7 @@ The worker mode subscribes to a Valkey PubSub channel and processes incoming eve
 2. Validates the message payload (same schema validation as web mode)
 3. Constructs the full image reference (`image:tag`)
 4. Lists all Deployments across accessible namespaces
-5. Finds Deployments with containers whose image exactly matches the event image reference
+5. Finds Deployments with containers whose image **exactly** matches the event image reference
 6. Patches each matching Deployment's pod template annotations to trigger a rollout restart
 
 **Matching rules:**
@@ -82,7 +90,7 @@ Valkey is used as a PubSub message broker between the web and worker components.
 - The ability to run multiple workers subscribing to the same channel
 - Simple infrastructure with no persistence requirements
 
-**Important:** Valkey PubSub is fire-and-forget. Messages are not persisted, so if the worker is not connected when a message is published, the message is lost. This is acceptable for development environments where occasional missed events can be handled via manual restarts.
+**Important:** Valkey PubSub is fire-and-forget. Messages are not persisted, so if the worker is not connected when a message is published, the message is lost. This is acceptable for development environments where occasional missed events can be handled via manual restarts or a subsequent deployment.
 
 ## Data Flow
 
@@ -96,18 +104,6 @@ The JSON payload published to Valkey matches the request payload:
   "tag": "dev"
 }
 ```
-
-Optional fields:
-
-```json
-{
-  "image": "ghcr.io/unitvectory-labs/myservice",
-  "tag": "dev",
-  "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-}
-```
-
-The payload format is designed for future extensibility — new optional fields can be added without breaking existing functionality.
 
 ## Security Model
 

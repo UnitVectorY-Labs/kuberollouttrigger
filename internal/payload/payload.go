@@ -3,18 +3,14 @@ package payload
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 )
 
 // Event represents the webhook event payload.
 type Event struct {
-	Image  string `json:"image"`
-	Tag    string `json:"tag"`
-	Digest string `json:"digest,omitempty"`
+	Image string `json:"image"`
+	Tag   string `json:"tag"`
 }
-
-var digestRegex = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
 
 // ParseAndValidate parses JSON bytes into an Event and validates all fields.
 // allowedPrefix is the required prefix for the image field.
@@ -57,11 +53,6 @@ func ValidateEvent(evt *Event, allowedPrefix string) error {
 	// Validate image looks like a container image reference (registry/path format)
 	if !strings.Contains(evt.Image, "/") {
 		return fmt.Errorf("image %q is not a valid container image reference", evt.Image)
-	}
-
-	// Validate digest format if present
-	if evt.Digest != "" && !digestRegex.MatchString(evt.Digest) {
-		return fmt.Errorf("digest %q does not match expected format sha256:<64 hex chars>", evt.Digest)
 	}
 
 	return nil

@@ -1,3 +1,10 @@
+---
+layout: default
+title: Deployment
+nav_order: 4
+permalink: /deployment
+---
+
 # Kubernetes Deployment
 
 This document provides example Kubernetes manifests for deploying kuberollouttrigger in a Kubernetes cluster.
@@ -184,6 +191,7 @@ subjects:
 1. The worker code only performs a targeted strategic merge patch on the annotation field
 2. The worker runs with a dedicated service account, isolating its permissions
 3. RBAC scope can be further restricted using namespace-scoped RoleBindings instead of a ClusterRoleBinding to limit the blast radius
+4. The web component is intentionally separated from the worker to provide insulation in the event that the web instance is compromised.
 
 To restrict the worker to specific namespaces, replace the `ClusterRoleBinding` with individual `RoleBinding` resources in each target namespace:
 
@@ -315,7 +323,9 @@ spec:
             - containerPort: 8080
 ```
 
-**Note:** `imagePullPolicy: Always` is recommended for development tags like `dev` to ensure the latest image is always pulled during a rollout restart.
+**Note:** `imagePullPolicy: Always` is recommended for development tags like `dev` to ensure the latest image is always pulled during a rollout restart. This is meant for the bleeding-edge development workflow where the tag is reused for iterative testing.
+
+For production workflows it is still recommended to use immutable tags, `imagePullPolicy: IfNotPresent` which requires thedeployment to be updated with the new tag for each release meaning kuberollouttrigger would not be used in production scenarios.
 
 ## Namespace Setup
 

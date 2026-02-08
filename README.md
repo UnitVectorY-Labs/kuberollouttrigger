@@ -31,7 +31,7 @@ This is then intended to be trigger by a GitHub Action using [kuberollouttrigger
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — System design and component overview
-- [Configuration](docs/configuration.md) — Environment variables and CLI flags reference
-- [Kubernetes Deployment](docs/deployment.md) — Example manifests for web, worker, RBAC, and Valkey
-- [GitHub Actions Integration](docs/github-actions.md) — Workflow examples and payload format
+- [Architecture](docs/ARCHITECTURE.md) — System design and component overview
+- [Configuration](docs/CONFIGURATION.md) — Environment variables and CLI flags reference
+- [Kubernetes Deployment](docs/DEPLOYMENT.md) — Example manifests for web, worker, RBAC, and Valkey
+- [GitHub Actions Integration](docs/ACTIONS.md) — Workflow examples and payload format
