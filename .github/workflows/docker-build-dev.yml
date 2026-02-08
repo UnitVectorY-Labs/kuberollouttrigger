@@ -13,7 +13,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
     - name: Checkout code
@@ -57,26 +56,25 @@ jobs:
         min-versions-to-keep: 10
         delete-only-untagged-versions: 'true'
 
-    - name: Get OIDC token
-      id: oidc
-      run: |
-        TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=${{ secrets.KUBEROLLOUTTRIGGER_AUD }}" \
-          | jq -r '.value')
-        echo "::add-mask::$TOKEN"
-        echo "kuberollouttrigger_token=$TOKEN" >> "$GITHUB_OUTPUT"
+  trigger-rollout:
+    needs: build-and-push
+    runs-on: arc-runner-set
+    timeout-minutes: 10
 
-    - name: Trigger rollout
-      run: |
-        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-          -X POST \
-          -H "Authorization: Bearer ${{ steps.oidc.outputs.kuberollouttrigger_token }}" \
-          -H "Content-Type: application/json" \
-          -d '{"image":"ghcr.io/${{ env.REPO_LC }}-snapshot","tag":"dev"}' \
-          "${{ secrets.KUBEROLLOUTTRIGGER_URL }}")
+    permissions:
+      id-token: write
+      contents: read
 
-        echo "HTTP Status: $HTTP_STATUS"
-        if [ "$HTTP_STATUS" != "202" ]; then
-          echo "::error::Rollout trigger failed with status $HTTP_STATUS"
-          exit 1
-        fi
+    steps:
+      - name: Set lowercase repository name
+        shell: bash
+        run: |
+          echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Trigger rollout
+        uses: unitvectory-labs/kuberollouttrigger-action@416a2ca6ca603d5600e55b525b94c2a3e983710e # v0.1.0
+        with:
+          audience: ${{ secrets.KUBEROLLOUTTRIGGER_AUD }}
+          url: ${{ secrets.KUBEROLLOUTTRIGGER_URL }}
+          image: ghcr.io/${{ env.REPO_LC }}-snapshot
+          tag: dev
