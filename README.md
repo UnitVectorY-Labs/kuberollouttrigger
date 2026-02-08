@@ -25,6 +25,8 @@ kuberollouttrigger worker \
   --allowed-image-prefix ghcr.io/unitvectory-labs/
 ```
 
+This is then intended to be trigger by a GitHub Action using [kuberollouttrigger-action](https://github.com/UnitVectorY-Labs/kuberollouttrigger-action) so that the deployment is fully automated.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md) — System design and component overview
