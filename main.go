@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -19,7 +20,22 @@ import (
 	"github.com/UnitVectorY-Labs/kuberollouttrigger/internal/web"
 )
 
+// Version is the application version, injected at build time via ldflags
+var Version = "dev"
+
 func main() {
+	// Set the build version from the build info if not set by the build system
+	if Version == "dev" || Version == "" {
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			if bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+				Version = bi.Main.Version
+			}
+		}
+	}
+
+	// Print the version on startup
+	fmt.Printf("kuberollouttrigger version: %s\n", Version)
+
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <web|worker> [flags]\n", os.Args[0])
 		os.Exit(1)
@@ -208,4 +224,3 @@ func runWorker(args []string) error {
 		}
 	}
 }
-
