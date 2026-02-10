@@ -217,7 +217,18 @@ func runWorker(args []string) error {
 			return
 		}
 
-		for _, m := range matchMap {
+		// Extract matches to a slice and sort for deterministic processing
+		matches := make([]k8s.MatchingDeployment, 0, len(matchMap))
+		matchKeys := make([]string, 0, len(matchMap))
+		for key := range matchMap {
+			matchKeys = append(matchKeys, key)
+		}
+		sort.Strings(matchKeys)
+		for _, key := range matchKeys {
+			matches = append(matches, matchMap[key])
+		}
+
+		for _, m := range matches {
 			logger.Info("found matching deployment",
 				"namespace", m.Namespace,
 				"deployment", m.Name,
