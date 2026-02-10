@@ -174,26 +174,42 @@ func runWorker(args []string) error {
 			return
 		}
 
-		imageRef := evt.ImageRef()
-		logger.Info("processing event", "image_ref", imageRef)
+		imageRefs := evt.ImageRefs()
+		logger.Info("processing event", "image", evt.Image, "tags", strings.Join(evt.Tags, ","), "image_refs_count", len(imageRefs))
 
-		matches, err := restarter.FindMatchingDeployments(ctx, imageRef)
-		if err != nil {
-			logger.Error("failed to find matching deployments", "error", err)
+		// Collect all matching deployments for any of the image references
+		matchMap := make(map[string]k8s.MatchingDeployment)
+		for _, imageRef := range imageRefs {
+			matches, err := restarter.FindMatchingDeployments(ctx, imageRef)
+			if err != nil {
+				logger.Error("failed to find matching deployments", "image_ref", imageRef, "error", err)
+				continue
+			}
+
+			// Add matches to the map (keyed by namespace/name to avoid duplicates)
+			for _, m := range matches {
+				key := m.Namespace + "/" + m.Name
+				if existing, found := matchMap[key]; found {
+					// Merge container names if we found the same deployment multiple times
+					existing.ContainerNames = append(existing.ContainerNames, m.ContainerNames...)
+					matchMap[key] = existing
+				} else {
+					matchMap[key] = m
+				}
+			}
+		}
+
+		if len(matchMap) == 0 {
+			logger.Info("no matching deployments found", "image", evt.Image, "tags", strings.Join(evt.Tags, ","))
 			return
 		}
 
-		if len(matches) == 0 {
-			logger.Info("no matching deployments found", "image_ref", imageRef)
-			return
-		}
-
-		for _, m := range matches {
+		for _, m := range matchMap {
 			logger.Info("found matching deployment",
 				"namespace", m.Namespace,
 				"deployment", m.Name,
 				"containers", strings.Join(m.ContainerNames, ","),
-				"image_ref", imageRef,
+				"image", evt.Image,
 			)
 			if err := restarter.RestartDeployment(ctx, m.Namespace, m.Name); err != nil {
 				logger.Error("failed to restart deployment",

@@ -200,7 +200,7 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 	count := s.publishCount.Add(1)
 	logger.Info("event published",
 		"image", evt.Image,
-		"tag", evt.Tag,
+		"tags", evt.Tags,
 		"total_published", count,
 	)
 

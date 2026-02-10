@@ -110,7 +110,7 @@ func TestHandleEvent_MissingAuth(t *testing.T) {
 	pub := valkey.NewPublisher(&redis.Options{Addr: "localhost:6379"}, "test", testLogger())
 	srv := NewServer(v, pub, "ghcr.io/test/", testLogger())
 
-	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"ghcr.io/test/svc","tag":"dev"}`))
+	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"ghcr.io/test/svc","tags":["dev"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
@@ -125,7 +125,7 @@ func TestHandleEvent_InvalidContentType(t *testing.T) {
 	pub := valkey.NewPublisher(&redis.Options{Addr: "localhost:6379"}, "test", testLogger())
 	srv := NewServer(v, pub, "ghcr.io/test/", testLogger())
 
-	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"ghcr.io/test/svc","tag":"dev"}`))
+	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"ghcr.io/test/svc","tags":["dev"]}`))
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Authorization", "Bearer some-token")
 	w := httptest.NewRecorder()
@@ -160,7 +160,7 @@ func TestHandleEvent_WrongOrg(t *testing.T) {
 
 	tokenStr := createSignedToken(t, key, kid, claims)
 
-	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"ghcr.io/test/svc","tag":"dev"}`))
+	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"ghcr.io/test/svc","tags":["dev"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tokenStr)
 	w := httptest.NewRecorder()
@@ -196,7 +196,7 @@ func TestHandleEvent_InvalidPayload(t *testing.T) {
 	tokenStr := createSignedToken(t, key, kid, claims)
 
 	// Wrong prefix
-	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"docker.io/wrong/svc","tag":"dev"}`))
+	req := httptest.NewRequest("POST", "/event", strings.NewReader(`{"image":"docker.io/wrong/svc","tags":["dev"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tokenStr)
 	w := httptest.NewRecorder()
