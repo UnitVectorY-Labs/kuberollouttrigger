@@ -69,7 +69,7 @@ jobs:
           webhook-url: https://kuberollouttrigger.example.com/event
           audience: https://kuberollouttrigger.example.com
           image: ghcr.io/${{ github.repository }}
-          tag: dev
+          tags: dev
 ```
 
 For production, pin the action to a stable release tag or commit SHA instead of `@main`.
@@ -78,7 +78,7 @@ For production, pin the action to a stable release tag or commit SHA instead of 
 
 - Keep `permissions.id-token: write` enabled so the action can request a GitHub OIDC token.
 - Set `audience` to exactly match `GITHUB_OIDC_AUDIENCE` configured on web mode.
-- Keep image/tag values aligned with what your build step publishes.
+- Keep image/tags values aligned with what your build step publishes.
 - Refer to the action README for the latest supported inputs and outputs:
   - [kuberollouttrigger-action documentation](https://github.com/UnitVectorY-Labs/kuberollouttrigger-action)
 
@@ -89,14 +89,25 @@ The payload sent by the action is validated by kuberollouttrigger with this sche
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `image` | string | **Yes** | Full image name including registry and repository path, without tag |
-| `tag` | string | **Yes** | Image tag (for example `dev`, `latest`, `v1.0.0`) |
+| `tags` | array of strings | **Yes** | Image tags (for example `["dev"]`, `["v1.0.0", "latest"]`) |
 
 ### Example Payload
+
+Single tag:
 
 ```json
 {
   "image": "ghcr.io/unitvectory-labs/myservice",
-  "tag": "dev"
+  "tags": ["dev"]
+}
+```
+
+Multiple tags:
+
+```json
+{
+  "image": "ghcr.io/unitvectory-labs/myservice",
+  "tags": ["v1.0.0", "v1.0", "v1", "latest"]
 }
 ```
 
@@ -104,7 +115,8 @@ The payload sent by the action is validated by kuberollouttrigger with this sche
 
 - `image` must start with the configured `ALLOWED_IMAGE_PREFIX`
 - `image` must contain at least one `/` (valid container image reference)
-- `tag` must be non-empty
+- `tags` must be a non-empty array
+- Each tag in the `tags` array must be non-empty
 - Unknown fields are rejected (strict schema validation)
 
 ## Response Codes
@@ -143,8 +155,8 @@ The payload sent by the action is validated by kuberollouttrigger with this sche
 ### 400 Bad Request
 
 - Verify the image name starts with the configured `ALLOWED_IMAGE_PREFIX`
-- Verify the payload fields are valid (`image`, `tag`)
-- Verify `tag` is non-empty
+- Verify the payload fields are valid (`image`, `tags`)
+- Verify `tags` is a non-empty array with no empty strings
 
 ### 502 Bad Gateway
 

@@ -66,16 +66,17 @@ The worker mode subscribes to a Valkey PubSub channel and processes incoming eve
 
 1. Receives a JSON message from the Valkey channel
 2. Validates the message payload (same schema validation as web mode)
-3. Constructs the full image reference (`image:tag`)
+3. Constructs full image references for each tag (`image:tag1`, `image:tag2`, etc.)
 4. Lists all Deployments across accessible namespaces
-5. Finds Deployments with containers whose image **exactly** matches the event image reference
+5. Finds Deployments with containers whose image **exactly** matches any of the event image references
 6. Patches each matching Deployment's pod template annotations to trigger a rollout restart
 
 **Matching rules:**
 
-- The image reference is constructed as `event.image + ":" + event.tag`
+- Image references are constructed as `event.image + ":" + tag` for each tag in the `tags` array
 - Container images must match exactly (no prefix or wildcard matching)
 - Multiple Deployments across multiple namespaces can match a single event
+- A single Deployment is only restarted once even if it matches multiple tags
 
 **Restart mechanism:**
 
@@ -101,7 +102,16 @@ The JSON payload published to Valkey matches the request payload:
 ```json
 {
   "image": "ghcr.io/unitvectory-labs/myservice",
-  "tag": "dev"
+  "tags": ["dev"]
+}
+```
+
+When multiple tags are specified:
+
+```json
+{
+  "image": "ghcr.io/unitvectory-labs/myservice",
+  "tags": ["v1.0.0", "v1.0", "v1", "latest"]
 }
 ```
 
