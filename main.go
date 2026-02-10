@@ -190,8 +190,19 @@ func runWorker(args []string) error {
 			for _, m := range matches {
 				key := m.Namespace + "/" + m.Name
 				if existing, found := matchMap[key]; found {
-					// Merge container names if we found the same deployment multiple times
-					existing.ContainerNames = append(existing.ContainerNames, m.ContainerNames...)
+					// Merge container names, avoiding duplicates
+					containerSet := make(map[string]bool)
+					for _, c := range existing.ContainerNames {
+						containerSet[c] = true
+					}
+					for _, c := range m.ContainerNames {
+						containerSet[c] = true
+					}
+					merged := make([]string, 0, len(containerSet))
+					for c := range containerSet {
+						merged = append(merged, c)
+					}
+					existing.ContainerNames = merged
 					matchMap[key] = existing
 				} else {
 					matchMap[key] = m

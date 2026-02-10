@@ -69,7 +69,7 @@ jobs:
           webhook-url: https://kuberollouttrigger.example.com/event
           audience: https://kuberollouttrigger.example.com
           image: ghcr.io/${{ github.repository }}
-          tags: dev
+          tags: dev  # Action accepts tags and converts to JSON array format
 ```
 
 For production, pin the action to a stable release tag or commit SHA instead of `@main`.
