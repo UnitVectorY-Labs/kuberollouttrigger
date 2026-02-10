@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -202,6 +203,7 @@ func runWorker(args []string) error {
 					for c := range containerSet {
 						merged = append(merged, c)
 					}
+					sort.Strings(merged) // Ensure deterministic ordering
 					existing.ContainerNames = merged
 					matchMap[key] = existing
 				} else {
