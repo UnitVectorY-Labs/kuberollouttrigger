@@ -178,7 +178,8 @@ func runWorker(args []string) error {
 		imageRefs := evt.ImageRefs()
 		logger.Info("processing event", "image", evt.Image, "tags", strings.Join(evt.Tags, ","), "image_refs_count", len(imageRefs))
 
-		// Collect all matching deployments for any of the image references
+		// Collect all matching deployments for any of the image references.
+		// Use a map with namespace/name as key to deduplicate deployments that match multiple tags.
 		matchMap := make(map[string]k8s.MatchingDeployment)
 		for _, imageRef := range imageRefs {
 			matches, err := restarter.FindMatchingDeployments(ctx, imageRef)
@@ -191,7 +192,9 @@ func runWorker(args []string) error {
 			for _, m := range matches {
 				key := m.Namespace + "/" + m.Name
 				if existing, found := matchMap[key]; found {
-					// Merge container names, avoiding duplicates
+					// Merge container names, avoiding duplicates.
+					// Use a map to ensure each container name appears only once when the same
+					// deployment matches multiple tags.
 					containerSet := make(map[string]bool)
 					for _, c := range existing.ContainerNames {
 						containerSet[c] = true
