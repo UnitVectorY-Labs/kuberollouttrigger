@@ -85,7 +85,7 @@ jobs:
           echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Trigger rollout
-        uses: unitvectory-labs/kuberollouttrigger-action@416a2ca6ca603d5600e55b525b94c2a3e983710e # v0.1.0
+        uses: unitvectory-labs/kuberollouttrigger-action@e95cb8eb9a669a16363c13734a3663a7bcca54f2 # v0.2.0
         with:
           audience: ${{ secrets.KUBEROLLOUTTRIGGER_AUD }}
           url: ${{ secrets.KUBEROLLOUTTRIGGER_URL }}
