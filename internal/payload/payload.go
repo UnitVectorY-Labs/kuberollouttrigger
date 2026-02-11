@@ -8,8 +8,8 @@ import (
 
 // Event represents the webhook event payload.
 type Event struct {
-	Image string `json:"image"`
-	Tag   string `json:"tag"`
+	Image string   `json:"image"`
+	Tags  []string `json:"tags"`
 }
 
 // ParseAndValidate parses JSON bytes into an Event and validates all fields.
@@ -41,8 +41,15 @@ func ValidateEvent(evt *Event, allowedPrefix string) error {
 	if evt.Image == "" {
 		return fmt.Errorf("missing required field: image")
 	}
-	if evt.Tag == "" {
-		return fmt.Errorf("missing required field: tag")
+	if len(evt.Tags) == 0 {
+		return fmt.Errorf("missing required field: tags (must be a non-empty array)")
+	}
+
+	// Validate each tag is non-empty
+	for i, tag := range evt.Tags {
+		if tag == "" {
+			return fmt.Errorf("tags[%d] is empty", i)
+		}
 	}
 
 	// Validate image starts with allowed prefix
@@ -58,9 +65,13 @@ func ValidateEvent(evt *Event, allowedPrefix string) error {
 	return nil
 }
 
-// ImageRef returns the full image reference (image:tag).
-func (e *Event) ImageRef() string {
-	return e.Image + ":" + e.Tag
+// ImageRefs returns all full image references (image:tag) for each tag in the event.
+func (e *Event) ImageRefs() []string {
+	refs := make([]string, len(e.Tags))
+	for i, tag := range e.Tags {
+		refs[i] = e.Image + ":" + tag
+	}
+	return refs
 }
 
 // ToJSON serializes the event to minimized JSON.

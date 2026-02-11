@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -174,18 +175,60 @@ func runWorker(args []string) error {
 			return
 		}
 
-		imageRef := evt.ImageRef()
-		logger.Info("processing event", "image_ref", imageRef)
+		imageRefs := evt.ImageRefs()
+		logger.Info("processing event", "image", evt.Image, "tags", strings.Join(evt.Tags, ","), "image_refs_count", len(imageRefs))
 
-		matches, err := restarter.FindMatchingDeployments(ctx, imageRef)
-		if err != nil {
-			logger.Error("failed to find matching deployments", "error", err)
+		// Collect all matching deployments for any of the image references.
+		// Use a map with namespace/name as key to deduplicate deployments that match multiple tags.
+		matchMap := make(map[string]k8s.MatchingDeployment)
+		for _, imageRef := range imageRefs {
+			matches, err := restarter.FindMatchingDeployments(ctx, imageRef)
+			if err != nil {
+				logger.Error("failed to find matching deployments", "image_ref", imageRef, "error", err)
+				continue
+			}
+
+			// Add matches to the map (keyed by namespace/name to avoid duplicates)
+			for _, m := range matches {
+				key := m.Namespace + "/" + m.Name
+				if existing, found := matchMap[key]; found {
+					// Merge container names, avoiding duplicates.
+					// Use a map to ensure each container name appears only once when the same
+					// deployment matches multiple tags.
+					containerSet := make(map[string]bool)
+					for _, c := range existing.ContainerNames {
+						containerSet[c] = true
+					}
+					for _, c := range m.ContainerNames {
+						containerSet[c] = true
+					}
+					merged := make([]string, 0, len(containerSet))
+					for c := range containerSet {
+						merged = append(merged, c)
+					}
+					sort.Strings(merged) // Ensure deterministic ordering
+					existing.ContainerNames = merged
+					matchMap[key] = existing
+				} else {
+					matchMap[key] = m
+				}
+			}
+		}
+
+		if len(matchMap) == 0 {
+			logger.Info("no matching deployments found", "image", evt.Image, "tags", strings.Join(evt.Tags, ","))
 			return
 		}
 
-		if len(matches) == 0 {
-			logger.Info("no matching deployments found", "image_ref", imageRef)
-			return
+		// Extract matches to a slice and sort for deterministic processing
+		matches := make([]k8s.MatchingDeployment, 0, len(matchMap))
+		matchKeys := make([]string, 0, len(matchMap))
+		for key := range matchMap {
+			matchKeys = append(matchKeys, key)
+		}
+		sort.Strings(matchKeys)
+		for _, key := range matchKeys {
+			matches = append(matches, matchMap[key])
 		}
 
 		for _, m := range matches {
@@ -193,7 +236,7 @@ func runWorker(args []string) error {
 				"namespace", m.Namespace,
 				"deployment", m.Name,
 				"containers", strings.Join(m.ContainerNames, ","),
-				"image_ref", imageRef,
+				"image", evt.Image,
 			)
 			if err := restarter.RestartDeployment(ctx, m.Namespace, m.Name); err != nil {
 				logger.Error("failed to restart deployment",
