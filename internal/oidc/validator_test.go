@@ -35,8 +35,8 @@ func serveJWKS(t *testing.T, key *rsa.PrivateKey, kid string) *httptest.Server {
 	nBytes := key.PublicKey.N.Bytes()
 	eBytes := big.NewInt(int64(key.PublicKey.E)).Bytes()
 
-	jwks := map[string]interface{}{
-		"keys": []map[string]interface{}{
+	jwks := map[string]any{
+		"keys": []map[string]any{
 			{
 				"kty": "RSA",
 				"kid": kid,
