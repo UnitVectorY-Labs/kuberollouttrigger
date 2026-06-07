@@ -1,6 +1,6 @@
 module github.com/UnitVectorY-Labs/kuberollouttrigger
 
-go 1.26.0 // GOVERSION
+go 1.26 // GOVERSION
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
