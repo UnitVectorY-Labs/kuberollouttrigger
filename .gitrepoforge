@@ -5,7 +5,7 @@ config:
   license: MIT
   language: go
   release: docker-go
-  release_github: true
+  release_github: false
   status: wip
   codecov:
     enabled: true
