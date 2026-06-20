@@ -1,0 +1,13 @@
+name: kuberollouttrigger
+default_branch: main
+config:
+  description: "A lightweight GitHub Actions OIDC authenticated webhook and in-cluster worker that automatically restarts matching Kubernetes Deployments when a container image tag is updated."
+  license: MIT
+  language: go
+  release: docker-go
+  release_github: true
+  status: wip
+  codecov:
+    enabled: true
+  docs:
+    enabled: true
