@@ -38,6 +38,8 @@ managed_files:
       management: file
     - path: docs/.gitignore
       management: file
+    - path: docs/CNAME
+      management: file
     - path: docs/_config.yml
       management: file
     - path: go.mod

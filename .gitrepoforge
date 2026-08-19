@@ -11,3 +11,4 @@ config:
     enabled: true
   docs:
     enabled: true
+    domain: kuberollouttrigger.unitvectorylabs.com
