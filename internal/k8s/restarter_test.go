@@ -40,6 +40,37 @@ func createTestDeployment(namespace, name string, images ...string) *appsv1.Depl
 	}
 }
 
+func createTestDeploymentWithInit(namespace, name string, initImages []string, images []string) *appsv1.Deployment {
+	initContainers := make([]corev1.Container, len(initImages))
+	for i, img := range initImages {
+		initContainers[i] = corev1.Container{
+			Name:  fmt.Sprintf("init-container-%d", i),
+			Image: img,
+		}
+	}
+	containers := make([]corev1.Container, len(images))
+	for i, img := range images {
+		containers[i] = corev1.Container{
+			Name:  fmt.Sprintf("container-%d", i),
+			Image: img,
+		}
+	}
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					InitContainers: initContainers,
+					Containers:     containers,
+				},
+			},
+		},
+	}
+}
+
 func TestFindMatchingDeployments_SingleMatch(t *testing.T) {
 	client := fake.NewSimpleClientset(
 		createTestDeployment("default", "my-app", "ghcr.io/test/myservice:dev"),
@@ -182,5 +213,74 @@ func TestRestartDeployment_NotFound(t *testing.T) {
 	err := restarter.RestartDeployment(context.Background(), "default", "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for nonexistent deployment")
+	}
+}
+
+func TestFindMatchingDeployments_InitContainerOnly(t *testing.T) {
+	// Deployment whose image appears only in an init container.
+	client := fake.NewSimpleClientset(
+		createTestDeploymentWithInit("default", "docs-app",
+			[]string{"ghcr.io/test/myservice:dev"},
+			[]string{"nginx:latest"},
+		),
+	)
+
+	restarter := NewRestarterWithClient(client, testLogger())
+	matches, err := restarter.FindMatchingDeployments(context.Background(), "ghcr.io/test/myservice:dev")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match, got %d", len(matches))
+	}
+	if matches[0].Name != "docs-app" {
+		t.Errorf("expected docs-app, got %s", matches[0].Name)
+	}
+	if len(matches[0].ContainerNames) != 1 || matches[0].ContainerNames[0] != "init-container-0" {
+		t.Errorf("expected init-container-0, got %v", matches[0].ContainerNames)
+	}
+}
+
+func TestFindMatchingDeployments_InitAndMainContainer(t *testing.T) {
+	// Deployment where the image appears in both init and regular containers.
+	client := fake.NewSimpleClientset(
+		createTestDeploymentWithInit("default", "mixed-app",
+			[]string{"ghcr.io/test/myservice:dev"},
+			[]string{"ghcr.io/test/myservice:dev"},
+		),
+	)
+
+	restarter := NewRestarterWithClient(client, testLogger())
+	matches, err := restarter.FindMatchingDeployments(context.Background(), "ghcr.io/test/myservice:dev")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match, got %d", len(matches))
+	}
+	if len(matches[0].ContainerNames) != 2 {
+		t.Errorf("expected 2 container names (init + main), got %d", len(matches[0].ContainerNames))
+	}
+}
+
+func TestFindMatchingDeployments_InitContainerNoMatch(t *testing.T) {
+	// Deployment whose init container uses a different image; should not match.
+	client := fake.NewSimpleClientset(
+		createTestDeploymentWithInit("default", "app",
+			[]string{"ghcr.io/test/otherservice:dev"},
+			[]string{"nginx:latest"},
+		),
+	)
+
+	restarter := NewRestarterWithClient(client, testLogger())
+	matches, err := restarter.FindMatchingDeployments(context.Background(), "ghcr.io/test/myservice:dev")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(matches) != 0 {
+		t.Fatalf("expected 0 matches, got %d", len(matches))
 	}
 }
