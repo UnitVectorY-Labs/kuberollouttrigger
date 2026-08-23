@@ -71,6 +71,11 @@ func (r *Restarter) FindMatchingDeployments(ctx context.Context, imageRef string
 	var matches []MatchingDeployment
 	for _, d := range deployments.Items {
 		var containerNames []string
+		for _, c := range d.Spec.Template.Spec.InitContainers {
+			if c.Image == imageRef {
+				containerNames = append(containerNames, c.Name)
+			}
+		}
 		for _, c := range d.Spec.Template.Spec.Containers {
 			if c.Image == imageRef {
 				containerNames = append(containerNames, c.Name)
