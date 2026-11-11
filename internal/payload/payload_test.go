@@ -95,6 +95,26 @@ func TestParseAndValidate_Invalid(t *testing.T) {
 			prefix: "ghcr.io",
 		},
 		{
+			name:   "duplicate field",
+			input:  `{"image":"ghcr.io/test/myservice","image":"ghcr.io/test/other","tags":["dev"]}`,
+			prefix: "ghcr.io/test/",
+		},
+		{
+			name:   "case mismatch",
+			input:  `{"Image":"ghcr.io/test/myservice","tags":["dev"]}`,
+			prefix: "ghcr.io/test/",
+		},
+		{
+			name:   "invalid UTF-8",
+			input:  "{\"image\":\"ghcr.io/test/\xff\",\"tags\":[\"dev\"]}",
+			prefix: "ghcr.io/test/",
+		},
+		{
+			name:   "second JSON value",
+			input:  `{"image":"ghcr.io/test/myservice","tags":["dev"]} {}`,
+			prefix: "ghcr.io/test/",
+		},
+		{
 			name:   "trailing content",
 			input:  `{"image":"ghcr.io/test/myservice","tags":["dev"]}extra`,
 			prefix: "ghcr.io/test/",
