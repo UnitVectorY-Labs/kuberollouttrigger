@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -55,7 +55,7 @@ func serveJWKS(t *testing.T, key *rsa.PrivateKey, kid string) *httptest.Server {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(jwks)
+		json.MarshalWrite(w, jwks)
 	}))
 	t.Cleanup(srv.Close)
 	return srv
