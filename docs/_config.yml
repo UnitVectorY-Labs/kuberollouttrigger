@@ -1,9 +1,13 @@
 title: kuberollouttrigger
 description: "A lightweight GitHub Actions OIDC authenticated webhook and in-cluster worker that automatically restarts matching Kubernetes Deployments when a container image tag is updated."
 
-remote_theme: UnitVectorY-Labs/uvy-docs-theme@v0.2.0
+remote_theme: UnitVectorY-Labs/uvy-docs-theme@v0.4.0
 plugins:
   - jekyll-remote-theme
+
+uvy_docs:
+  license: "MIT License"
+  license_url: "https://github.com/UnitVectorY-Labs/kuberollouttrigger/blob/main/LICENSE"
 
 callouts:
   highlight:
