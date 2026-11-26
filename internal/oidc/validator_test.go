@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -48,7 +48,7 @@ func serveJWKS(t *testing.T, key *rsa.PrivateKey, kid string) *httptest.Server {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(jwks)
+		json.MarshalWrite(w, jwks)
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -278,6 +278,26 @@ func TestFetchJWKS_InvalidJSON(t *testing.T) {
 	_, err := v.fetchJWKS()
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestFetchJWKS_RejectsAmbiguousJSON(t *testing.T) {
+	for _, body := range []string{
+		`{"keys":[],"keys":[]}`,
+		"{\"keys\":[],\"extra\":\"\xff\"}",
+	} {
+		t.Run(body, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(body))
+			}))
+			defer srv.Close()
+
+			v := NewValidator("test-audience", "test-org", false, testLogger())
+			v.jwksURL = srv.URL
+			if _, err := v.fetchJWKS(); err == nil {
+				t.Fatal("expected ambiguous JWKS JSON to be rejected")
+			}
+		})
 	}
 }
 

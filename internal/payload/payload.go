@@ -1,7 +1,7 @@
 package payload
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 )
@@ -15,18 +15,9 @@ type Event struct {
 // ParseAndValidate parses JSON bytes into an Event and validates all fields.
 // allowedPrefix is the required prefix for the image field.
 func ParseAndValidate(data []byte, allowedPrefix string) (*Event, error) {
-	// Reject unexpected fields by using a strict decoder
-	dec := json.NewDecoder(strings.NewReader(string(data)))
-	dec.DisallowUnknownFields()
-
 	var evt Event
-	if err := dec.Decode(&evt); err != nil {
+	if err := json.Unmarshal(data, &evt, json.RejectUnknownMembers(true)); err != nil {
 		return nil, fmt.Errorf("invalid JSON payload: %w", err)
-	}
-
-	// Ensure no trailing content
-	if dec.More() {
-		return nil, fmt.Errorf("invalid JSON payload: unexpected trailing content")
 	}
 
 	if err := ValidateEvent(&evt, allowedPrefix); err != nil {
